@@ -40,6 +40,7 @@ export function rcOptionsTypes (): Record<string, unknown> {
       'production',
     ], allTypes),
     compatible: Boolean,
+    diff: Boolean,
     format: ['table', 'list', 'json'],
     'sort-by': 'name',
   }
@@ -76,6 +77,10 @@ pnpm outdated gulp-* @babel/core`,
           {
             description: 'Print only versions that satisfy specs in package.json',
             name: '--compatible',
+          },
+          {
+            description: 'TODO description',
+            name: '--diff',
           },
           {
             description: 'By default, details about the outdated packages (such as a link to the repo) are not displayed. \
@@ -132,6 +137,7 @@ export const completion: CompletionFunc = async (cliOpts) => {
 
 export type OutdatedCommandOptions = {
   compatible?: boolean
+  diff?: boolean
   long?: boolean
   recursive?: boolean
   format?: 'table' | 'list' | 'json'
@@ -227,7 +233,7 @@ export async function handler (
   }
 }
 
-function renderOutdatedTable (outdatedPackages: readonly OutdatedPackage[], opts: { long?: boolean, sortBy?: 'name' }): string {
+function renderOutdatedTable (outdatedPackages: readonly OutdatedPackage[], opts: { diff?: boolean, long?: boolean, sortBy?: 'name' }): string {
   if (outdatedPackages.length === 0) return ''
   const columnNames = [
     'Package',
@@ -244,6 +250,11 @@ function renderOutdatedTable (outdatedPackages: readonly OutdatedPackage[], opts
   if (opts.long) {
     columnNames.push('Details')
     columnFns.push(renderDetails)
+  }
+
+  if (opts.diff) {
+    columnNames.push('Diff')
+    columnFns.push(renderDiff)
   }
 
   // Avoid the overhead of allocating a new array caused by calling `array.map()`
@@ -276,7 +287,7 @@ function renderOutdatedTable (outdatedPackages: readonly OutdatedPackage[], opts
   })
 }
 
-function renderOutdatedList (outdatedPackages: readonly OutdatedPackage[], opts: { long?: boolean, sortBy?: 'name' }): string {
+function renderOutdatedList (outdatedPackages: readonly OutdatedPackage[], opts: { diff?: boolean, long?: boolean, sortBy?: 'name' }): string {
   if (outdatedPackages.length === 0) return ''
   return sortOutdatedPackages(outdatedPackages, { sortBy: opts.sortBy })
     .map((outdatedPkg) => {
@@ -288,6 +299,14 @@ ${renderCurrent(outdatedPkg)} ${chalk.grey('=>')} ${renderLatest(outdatedPkg)}`
 
         if (details) {
           info += `\n${details}`
+        }
+      }
+
+      if (opts.diff) {
+        const diff = renderDiff(outdatedPkg)
+
+        if (diff) {
+          info += `\n${diff}`
         }
       }
 
@@ -392,4 +411,14 @@ export function renderDetails ({ latestManifest }: OutdatedPackage): string {
     outputs.push(chalk.underline(latestManifest.homepage))
   }
   return outputs.join('\n')
+}
+
+export function renderDiff (outdatedPkg: OutdatedPackage): string {
+  if (outdatedPkg.latestManifest == null) return ''
+
+  const packageName = encodeURIComponent(outdatedPkg.packageName)
+  const fromVersion = encodeURIComponent(outdatedPkg.current ?? outdatedPkg.wanted)
+  const toVersion = encodeURIComponent(outdatedPkg.latestManifest.version)
+
+  return `https://renovatebot.com/diffs/npm/${packageName}/${fromVersion}/${toVersion}`
 }

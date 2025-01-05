@@ -20,6 +20,7 @@ import {
   type OutdatedPackageJSONOutput,
   renderCurrent,
   renderDetails,
+  renderDiff,
   renderLatest,
   renderPackageName,
   toOutdatedWithVersionDiff,
@@ -101,7 +102,7 @@ export async function outdatedRecursive (
   }
 }
 
-function renderOutdatedTable (outdatedMap: Record<string, OutdatedInWorkspace>, opts: { long?: boolean }): string {
+function renderOutdatedTable (outdatedMap: Record<string, OutdatedInWorkspace>, opts: { diff?: boolean, long?: boolean }): string {
   if (isEmpty(outdatedMap)) return ''
   const columnNames = [
     'Package',
@@ -120,6 +121,11 @@ function renderOutdatedTable (outdatedMap: Record<string, OutdatedInWorkspace>, 
   if (opts.long) {
     columnNames.push('Details')
     columnFns.push(renderDetails)
+  }
+
+  if (opts.diff) {
+    columnNames.push('Diff')
+    columnFns.push(renderDiff)
   }
 
   // Avoid the overhead of allocating a new array caused by calling `array.map()`
@@ -144,7 +150,7 @@ function renderOutdatedTable (outdatedMap: Record<string, OutdatedInWorkspace>, 
   })
 }
 
-function renderOutdatedList (outdatedMap: Record<string, OutdatedInWorkspace>, opts: { long?: boolean }): string {
+function renderOutdatedList (outdatedMap: Record<string, OutdatedInWorkspace>, opts: { diff?: boolean, long?: boolean }): string {
   if (isEmpty(outdatedMap)) return ''
   return sortOutdatedPackages(Object.values(outdatedMap))
     .map((outdatedPkg) => {
@@ -166,6 +172,14 @@ ${renderCurrent(outdatedPkg)} ${chalk.grey('=>')} ${renderLatest(outdatedPkg)}`
 
         if (details) {
           info += `\n${details}`
+        }
+      }
+
+      if (opts.diff) {
+        const diff = renderDiff(outdatedPkg)
+
+        if (diff) {
+          info += `\n${diff}`
         }
       }
 
